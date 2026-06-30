@@ -1,0 +1,15 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "chamber-api",
+  "main": "src/index.ts",
+  "compatibility_date": "2025-03-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "chamber",
+      "database_id": "36e16419-7713-4f97-b40a-dbd628fe392a",
+      "migrations_dir": "../migrations/d1"
+    }
+  ]
+}

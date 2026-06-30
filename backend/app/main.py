@@ -5,16 +5,12 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.database import async_session, engine
 from app.d1 import d1
-from app.models import Base
 from app.routers import artists, auth, breakdowns, compass, lineage, tapedeck, traditions, tracks
 from app.seed import seed_database
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-
     await d1.init_schema()
 
     async with async_session() as session:

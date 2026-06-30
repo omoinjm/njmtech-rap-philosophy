@@ -1,0 +1,4 @@
+JWT_SECRET=dev-secret-change-in-production
+JWT_EXPIRE_HOURS=168
+GITHUB_TOKEN=
+GITHUB_MODEL=openai/gpt-4o

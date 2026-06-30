@@ -1,7 +1,21 @@
-const API_URL = process.env.INTERNAL_API_URL ?? 'http://127.0.0.1:8000'
+const DEFAULT_API = process.env.INTERNAL_API_URL ?? 'http://127.0.0.1:8787'
 
-async function fetchJson<T>(path: string): Promise<T> {
-  const res = await fetch(`${API_URL}${path}`, { next: { revalidate: 60 } })
+async function serverFetch<T>(path: string): Promise<T> {
+  let res: Response
+
+  try {
+    const { getCloudflareContext } = await import('@opennextjs/cloudflare')
+    const { env } = await getCloudflareContext({ async: true })
+    const api = (env as { API?: Fetcher }).API
+    if (api) {
+      res = await api.fetch(new Request(`https://internal${path}`))
+    } else {
+      res = await fetch(`${DEFAULT_API}${path}`, { next: { revalidate: 60 } })
+    }
+  } catch {
+    res = await fetch(`${DEFAULT_API}${path}`, { next: { revalidate: 60 } })
+  }
+
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: res.statusText }))
     throw new Error(err.detail ?? 'Request failed')
@@ -10,17 +24,17 @@ async function fetchJson<T>(path: string): Promise<T> {
 }
 
 export const serverApi = {
-  getArtists: () => fetchJson<import('./types').Artist[]>('/api/artists'),
-  getArtist: (id: string) => fetchJson<import('./types').ArtistDetail>(`/api/artists/${id}`),
-  getLineage: () => fetchJson<import('./types').LineageGraph>('/api/lineage'),
-  getCompass: () => fetchJson<import('./types').CompassQuadrant[]>('/api/compass'),
+  getArtists: () => serverFetch<import('./types').Artist[]>('/api/artists'),
+  getArtist: (id: string) => serverFetch<import('./types').ArtistDetail>(`/api/artists/${id}`),
+  getLineage: () => serverFetch<import('./types').LineageGraph>('/api/lineage'),
+  getCompass: () => serverFetch<import('./types').CompassQuadrant[]>('/api/compass'),
   getTracks: (artistId: string) =>
-    fetchJson<import('./types').Track[]>(`/api/tracks/${artistId}`),
+    serverFetch<import('./types').Track[]>(`/api/tracks/${artistId}`),
   getBreakdowns: (traditionId?: string) => {
     const qs = traditionId ? `?tradition_id=${traditionId}` : ''
-    return fetchJson<import('./types').Breakdown[]>(`/api/breakdowns${qs}`)
+    return serverFetch<import('./types').Breakdown[]>(`/api/breakdowns${qs}`)
   },
   getBreakdownsForTrack: (trackId: string) =>
-    fetchJson<import('./types').Breakdown[]>(`/api/breakdowns/track/${trackId}`),
-  getTraditions: () => fetchJson<import('./types').Tradition[]>('/api/traditions'),
+    serverFetch<import('./types').Breakdown[]>(`/api/breakdowns/track/${trackId}`),
+  getTraditions: () => serverFetch<import('./types').Tradition[]>('/api/traditions'),
 }

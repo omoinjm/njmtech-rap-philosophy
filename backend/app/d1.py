@@ -6,18 +6,20 @@ import httpx
 
 from app.config import settings
 
-def _migration_sql() -> str:
+
+def _migration_dir() -> Path:
     candidates = [
-        Path(__file__).resolve().parents[2] / "migrations/d1/0001_users.sql",
-        Path("/migrations/d1/0001_users.sql"),
+        Path(__file__).resolve().parents[2] / "migrations/d1",
+        Path("/migrations/d1"),
     ]
     for path in candidates:
-        if path.exists():
-            return path.read_text()
-    raise FileNotFoundError("D1 migration SQL not found")
+        if path.is_dir():
+            return path
+    raise FileNotFoundError("D1 migrations directory not found")
 
 
-MIGRATION_SQL = _migration_sql()
+def _migration_files() -> list[Path]:
+    return sorted(_migration_dir().glob("*.sql"))
 
 
 class D1Client:
@@ -31,8 +33,9 @@ class D1Client:
         )
 
     async def init_schema(self) -> None:
-        for statement in _split_sql(MIGRATION_SQL):
-            await self.execute(statement)
+        for migration in _migration_files():
+            for statement in _split_sql(migration.read_text()):
+                await self.execute(statement)
 
     async def execute(self, sql: str, params: list[Any] | None = None) -> list[dict[str, Any]]:
         params = params or []

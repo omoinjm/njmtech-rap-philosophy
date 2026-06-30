@@ -9,6 +9,7 @@ __pycache__/
 # Node (frontend)
 node_modules/
 frontend/.next/
+.open-next/
 dist/
 
 # IDE
@@ -17,6 +18,3 @@ dist/
 
 # OS
 .DS_Store
-
-# Docker volumes
-postgres_data/

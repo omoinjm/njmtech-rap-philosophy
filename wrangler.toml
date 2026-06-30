@@ -1,8 +1,8 @@
-name = "chamber-auth"
+name = "chamber"
 compatibility_date = "2024-08-01"
 
 [[d1_databases]]
 binding = "DB"
-database_name = "chamber-auth"
-database_id = "REPLACE_WITH_D1_DATABASE_ID"
+database_name = "chamber"
+database_id = "36e16419-7713-4f97-b40a-dbd628fe392a"
 migrations_dir = "migrations/d1"
