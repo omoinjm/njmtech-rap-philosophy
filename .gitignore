@@ -4,9 +4,11 @@ __pycache__/
 .venv/
 *.egg-info/
 .env
+.data/
 
-# Node (frontend, later)
+# Node (frontend)
 node_modules/
+frontend/.next/
 dist/
 
 # IDE

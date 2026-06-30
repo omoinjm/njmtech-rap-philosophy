@@ -8,8 +8,14 @@ class Settings(BaseSettings):
     anthropic_api_key: str = ""
     spotify_client_id: str = ""
     spotify_client_secret: str = ""
-    supabase_url: str = ""
-    supabase_anon_key: str = ""
+
+    jwt_secret: str = "dev-secret-change-in-production"
+    jwt_expire_hours: int = 168
+
+    d1_database_id: str = ""
+    cloudflare_account_id: str = ""
+    cloudflare_api_token: str = ""
+    d1_local_path: str = ".data/auth.db"
 
 
 settings = Settings()

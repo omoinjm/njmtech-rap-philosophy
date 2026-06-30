@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, func
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, Text, func
 from sqlalchemy.dialects.postgresql import ENUM, UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
@@ -14,15 +14,6 @@ class Base(DeclarativeBase):
 
 era_enum = ENUM(Era, name="era", create_type=True)
 category_enum = ENUM(PhilosophicalCategory, name="philosophical_category", create_type=True)
-
-
-class User(Base):
-    __tablename__ = "users"
-
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    supabase_id: Mapped[str | None] = mapped_column(String, unique=True, nullable=True)
-    email: Mapped[str | None] = mapped_column(String, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class Artist(Base):
@@ -129,9 +120,7 @@ class LyricBreakdown(Base):
     tradition_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("philosophical_traditions.id", ondelete="SET NULL"), nullable=True
     )
-    submitted_by: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
-    )
+    submitted_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
     is_curated: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     track: Mapped[Track] = relationship(back_populates="breakdowns")

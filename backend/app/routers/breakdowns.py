@@ -75,7 +75,7 @@ async def create_breakdown(
         lyric_excerpt=payload.lyric_excerpt,
         philosophical_analysis=payload.philosophical_analysis,
         tradition_id=payload.tradition_id,
-        submitted_by=uuid.UUID(user_id) if _is_uuid(user_id) else None,
+        submitted_by=uuid.UUID(user_id),
         is_curated=False,
     )
     db.add(breakdown)
@@ -90,11 +90,3 @@ async def create_breakdown(
         )
     )
     return _to_breakdown_out(result.scalar_one())
-
-
-def _is_uuid(value: str) -> bool:
-    try:
-        uuid.UUID(value)
-        return True
-    except ValueError:
-        return False

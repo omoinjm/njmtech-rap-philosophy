@@ -4,8 +4,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.database import async_session, engine
+from app.d1 import d1
 from app.models import Base
-from app.routers import artists, breakdowns, compass, lineage, tapedeck, traditions, tracks
+from app.routers import artists, auth, breakdowns, compass, lineage, tapedeck, traditions, tracks
 from app.seed import seed_database
 
 
@@ -13,6 +14,8 @@ from app.seed import seed_database
 async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+
+    await d1.init_schema()
 
     async with async_session() as session:
         await seed_database(session)
@@ -32,15 +35,17 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
         "http://localhost:5173",
         "http://127.0.0.1:5173",
-        "http://localhost:4173",
     ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+app.include_router(auth.router)
 app.include_router(artists.router)
 app.include_router(lineage.router)
 app.include_router(compass.router)
