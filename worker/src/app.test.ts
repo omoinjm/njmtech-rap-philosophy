@@ -43,6 +43,20 @@ describe('API integration', () => {
     expect(body.every((item) => item.is_curated)).toBe(true)
   })
 
+  it('returns 503 when Google Sign-In is not configured', async () => {
+    const { status, body } = await jsonRequest<{ detail: string }>(
+      '/api/auth/google',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ credential: 'fake-token' }),
+      },
+      testEnv(),
+    )
+    expect(status).toBe(503)
+    expect(body.detail).toContain('Google Sign-In not configured')
+  })
+
   it('requires auth to submit breakdowns', async () => {
     const { status, body } = await jsonRequest<{ detail: string }>('/api/breakdowns', {
       method: 'POST',

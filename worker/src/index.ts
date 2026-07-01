@@ -16,6 +16,7 @@ import {
 import { ensureSchema } from './schema'
 import { ensureSeed } from './seed'
 import { resolveCorsOrigins } from './cors'
+import { verifyGoogleIdToken } from './google-auth'
 import { CATEGORY_META, type Env, type PhilosophicalCategory } from './types'
 
 const GITHUB_MODELS_BASE_URL = 'https://models.github.ai/inference'
@@ -331,6 +332,59 @@ app.delete('/api/breakdowns/:id', async (c) => {
 
   await c.env.DB.prepare('DELETE FROM lyric_breakdowns WHERE id = ?').bind(id).run()
   return c.body(null, 204)
+})
+
+app.post('/api/auth/google', async (c) => {
+  if (!c.env.GOOGLE_CLIENT_ID) {
+    return c.json({ detail: 'Google Sign-In not configured (set GOOGLE_CLIENT_ID)' }, 503)
+  }
+
+  const body = await c.req.json<{ credential: string }>()
+  if (!body.credential) {
+    return c.json({ detail: 'Google credential required' }, 400)
+  }
+
+  let profile
+  try {
+    profile = await verifyGoogleIdToken(body.credential, c.env.GOOGLE_CLIENT_ID)
+  } catch {
+    return c.json({ detail: 'Invalid Google credential' }, 401)
+  }
+
+  let user = await c.env.DB.prepare(
+    'SELECT id, email, is_admin FROM users WHERE google_id = ?',
+  )
+    .bind(profile.sub)
+    .first<{ id: string; email: string; is_admin: number }>()
+
+  if (!user) {
+    user = await c.env.DB.prepare('SELECT id, email, is_admin FROM users WHERE email = ?')
+      .bind(profile.email)
+      .first<{ id: string; email: string; is_admin: number }>()
+
+    if (user) {
+      await c.env.DB.prepare('UPDATE users SET google_id = ? WHERE id = ?')
+        .bind(profile.sub, user.id)
+        .run()
+    } else {
+      const userId = crypto.randomUUID()
+      const isAdmin = isConfiguredAdmin(profile.email, c.env) ? 1 : 0
+      await c.env.DB.prepare(
+        `INSERT INTO users (id, email, password_hash, google_id, is_admin)
+         VALUES (?, ?, ?, ?, ?)`,
+      )
+        .bind(userId, profile.email, hashPassword(crypto.randomUUID()), profile.sub, isAdmin)
+        .run()
+      user = { id: userId, email: profile.email, is_admin: isAdmin }
+    }
+  }
+
+  await promoteAdminIfConfigured(c.env.DB, c.env, user.id, profile.email)
+  const refreshed = await getAuthUser(c.env.DB, user.id)
+  if (!refreshed) return c.json({ detail: 'User not found' }, 401)
+
+  const token = await createAccessToken(c.env, refreshed.id, refreshed.email)
+  return c.json({ access_token: token, user: userPayload(refreshed) })
 })
 
 app.post('/api/auth/register', async (c) => {

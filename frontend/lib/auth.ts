@@ -58,6 +58,13 @@ export const authApi = {
       body: JSON.stringify({ email, password }),
     }),
 
+  googleLogin: (credential: string) =>
+    fetchJson<AuthSession>('/api/auth/google', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ credential }),
+    }),
+
   me: (token: string) =>
     fetchJson<AuthUser>('/api/auth/me', {
       headers: { Authorization: `Bearer ${token}` },

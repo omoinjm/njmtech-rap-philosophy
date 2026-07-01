@@ -111,6 +111,10 @@ npx wrangler secret put CORS_ORIGINS
 npx wrangler secret put ADMIN_EMAILS
 # paste: your@email.com
 # comma-separated — these accounts get admin + moderation queue access
+
+npx wrangler secret put GOOGLE_CLIENT_ID
+# paste: your-google-oauth-client-id.apps.googleusercontent.com
+# also set NEXT_PUBLIC_GOOGLE_CLIENT_ID to the same value for the frontend worker
 ```
 
 Optional:
@@ -285,6 +289,8 @@ Run `npm run dev:api` separately in another terminal for the API.
 | `GITHUB_TOKEN` | `worker` secret / `.dev.vars` | For Tape Deck |
 | `CORS_ORIGINS` | `worker` secret / `.dev.vars` | Production (comma-separated origins) |
 | `ADMIN_EMAILS` | `worker` secret / `.dev.vars` | Moderator emails (comma-separated) |
+| `GOOGLE_CLIENT_ID` | `worker` secret / `.dev.vars` | Google Sign-In (optional) |
+| `NEXT_PUBLIC_GOOGLE_CLIENT_ID` | `frontend/.env` / frontend worker vars | Same client ID as `GOOGLE_CLIENT_ID` |
 | `GITHUB_MODEL` | `worker` secret / `.dev.vars` | No (default `openai/gpt-4o`) |
 | `JWT_EXPIRE_HOURS` | `worker` secret / `.dev.vars` | No (default `168`) |
 | `INTERNAL_API_URL` | `frontend/.env` | Local dev only |

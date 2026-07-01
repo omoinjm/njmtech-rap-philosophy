@@ -16,6 +16,7 @@ interface AuthContextValue {
   loading: boolean
   signInWithEmail: (email: string, password: string) => Promise<void>
   signUpWithEmail: (email: string, password: string) => Promise<void>
+  signInWithGoogle: (credential: string) => Promise<void>
   signOut: () => void
 }
 
@@ -57,6 +58,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     applySession(await authApi.register(email, password))
   }
 
+  const signInWithGoogle = async (credential: string) => {
+    applySession(await authApi.googleLogin(credential))
+  }
+
   const signOut = () => {
     clearSession()
     setUser(null)
@@ -71,6 +76,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         loading,
         signInWithEmail,
         signUpWithEmail,
+        signInWithGoogle,
         signOut,
       }}
     >

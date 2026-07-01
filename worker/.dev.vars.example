@@ -6,3 +6,5 @@ GITHUB_MODEL=openai/gpt-4o
 # CORS_ORIGINS=https://yourdomain.com,https://www.yourdomain.com
 # Comma-separated emails granted admin (moderation queue access)
 # ADMIN_EMAILS=you@example.com
+# Google Sign-In (optional — same ID as frontend NEXT_PUBLIC_GOOGLE_CLIENT_ID)
+# GOOGLE_CLIENT_ID=your-google-oauth-client-id.apps.googleusercontent.com

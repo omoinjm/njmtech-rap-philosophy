@@ -16,6 +16,8 @@ export interface Env {
   CORS_ORIGINS?: string
   /** Comma-separated emails granted admin on register/login */
   ADMIN_EMAILS?: string
+  /** Google OAuth client ID for Sign in with Google */
+  GOOGLE_CLIENT_ID?: string
 }
 
 export const CATEGORY_META: Record<
