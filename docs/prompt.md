@@ -2,6 +2,9 @@ You are building a web application called "The 37th Chamber" — a Rap Philosoph
 exploration platform that maps hip-hop artists to philosophical traditions and their
 generational influences.
 
+> **Note:** This file is the original build specification. The live stack is documented
+> in [README.md](../README.md) — Next.js on Cloudflare, Hono worker API, and D1.
+
 ---
 
 ## TECH STACK

@@ -22,7 +22,6 @@ A Rap Philosophy exploration platform that maps hip-hop artists to philosophical
 ├── frontend/          # Next.js app → Cloudflare Worker (chamber)
 ├── worker/            # Hono API → Cloudflare Worker (chamber-api)
 ├── migrations/d1/     # D1 SQL migrations
-├── backend/           # Legacy FastAPI (local dev only, optional)
 └── package.json       # Root deploy scripts
 ```
 
