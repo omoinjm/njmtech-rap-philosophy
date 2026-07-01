@@ -10,10 +10,16 @@ import {
   NavigationMenuList,
 } from '@/components/ui/navigation-menu'
 import { NAV_ITEMS } from '@/data/navigation'
+import { useAuth } from '@/providers/AuthProvider'
 import { cn } from '@/lib/utils'
 
 export function Navbar() {
   const pathname = usePathname()
+  const { user } = useAuth()
+
+  const navItems = user?.is_admin
+    ? [...NAV_ITEMS, { href: '/admin', label: 'Admin' }]
+    : [...NAV_ITEMS]
 
   return (
     <motion.header
@@ -32,7 +38,7 @@ export function Navbar() {
 
         <NavigationMenu className="max-w-none flex-none">
           <NavigationMenuList className="flex-wrap justify-end gap-1 sm:gap-2">
-            {NAV_ITEMS.map(({ href, label }) => {
+            {navItems.map(({ href, label }) => {
               const active = pathname === href
               return (
                 <NavigationMenuItem key={href}>

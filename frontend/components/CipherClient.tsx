@@ -51,6 +51,7 @@ export function CipherClient({ initialBreakdowns, traditions, artists, tracks }:
   const [formAnalysis, setFormAnalysis] = useState('')
   const [formTraditionId, setFormTraditionId] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [submitSuccess, setSubmitSuccess] = useState<string | null>(null)
 
   useEffect(() => {
     if (!traditionFilter) {
@@ -97,7 +98,7 @@ export function CipherClient({ initialBreakdowns, traditions, artists, tracks }:
       setFormAnalysis('')
       setFormTraditionId('')
       setShowForm(false)
-      setBreakdowns(await clientApi.getBreakdowns(traditionFilter || undefined))
+      setSubmitSuccess('Submission received — it will appear in The Cipher after moderator approval.')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Submission failed')
     } finally {
@@ -198,6 +199,7 @@ export function CipherClient({ initialBreakdowns, traditions, artists, tracks }:
       )}
 
       {error && <p className="mt-4 text-sm text-destructive">{error}</p>}
+      {submitSuccess && <p className="mt-4 text-sm text-primary">{submitSuccess}</p>}
 
       <Dialog open={showAuth} onOpenChange={setShowAuth}>
         <DialogContent className="rounded-none border-chamber-border bg-chamber-surface sm:max-w-md">

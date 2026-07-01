@@ -4,3 +4,5 @@ GITHUB_TOKEN=
 GITHUB_MODEL=openai/gpt-4o
 # Comma-separated origins for browser API calls (production required)
 # CORS_ORIGINS=https://yourdomain.com,https://www.yourdomain.com
+# Comma-separated emails granted admin (moderation queue access)
+# ADMIN_EMAILS=you@example.com

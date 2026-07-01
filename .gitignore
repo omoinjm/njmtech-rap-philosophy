@@ -11,6 +11,9 @@ node_modules/
 frontend/.next/
 .open-next/
 dist/
+.wrangler/
+worker/.wrangler/
+worker/.dev.vars
 
 # IDE
 .vscode/

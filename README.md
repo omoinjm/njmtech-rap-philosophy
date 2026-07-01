@@ -130,6 +130,7 @@ npm run preview
 | `GITHUB_TOKEN` | For Tape Deck | PAT with `models:read` |
 | `GITHUB_MODEL` | No | Default `openai/gpt-4o` |
 | `CORS_ORIGINS` | Production | Comma-separated browser origins, e.g. `https://yourdomain.com` |
+| `ADMIN_EMAILS` | For moderation | Comma-separated emails granted admin on register/login |
 
 ### Frontend (`frontend/.env` — local dev only)
 
@@ -149,6 +150,7 @@ Production SSR uses the Cloudflare `API` service binding — no frontend secrets
 | `/artist/:id` | Artist profile, Spotify, breakdowns |
 | `/tapedeck` | AI chat with streaming SSE |
 | `/cipher` | Browse/submit lyric breakdowns |
+| `/admin` | Moderation queue (admin only) |
 
 ## API Routes
 
@@ -159,8 +161,11 @@ Production SSR uses the Cloudflare `API` service binding — no frontend secrets
 | GET | `/api/lineage` | Nodes + edges for React Flow |
 | GET | `/api/compass` | Artists grouped by category |
 | GET | `/api/tracks/:artist_id` | Tracks for artist |
-| GET | `/api/breakdowns` | All breakdowns (`?tradition_id=`) |
-| GET | `/api/breakdowns/track/:track_id` | Breakdowns for track |
+| GET | `/api/breakdowns` | Curated breakdowns only (`?tradition_id=`) |
+| GET | `/api/breakdowns/pending` | Pending submissions (admin) |
+| GET | `/api/breakdowns/track/:track_id` | Curated breakdowns for track |
+| POST | `/api/breakdowns/:id/approve` | Approve submission (admin) |
+| DELETE | `/api/breakdowns/:id` | Reject pending submission (admin) |
 | POST | `/api/auth/register` | Create account |
 | POST | `/api/auth/login` | Login, returns JWT |
 | GET | `/api/auth/me` | Current user (Bearer token) |

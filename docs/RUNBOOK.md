@@ -107,6 +107,10 @@ npx wrangler secret put GITHUB_TOKEN
 npx wrangler secret put CORS_ORIGINS
 # paste: https://YOUR_DOMAIN,https://www.YOUR_DOMAIN
 # (add workers.dev URL too if testing before custom domain — see section 5)
+
+npx wrangler secret put ADMIN_EMAILS
+# paste: your@email.com
+# comma-separated — these accounts get admin + moderation queue access
 ```
 
 Optional:
@@ -261,6 +265,7 @@ Run `npm run dev:api` separately in another terminal for the API.
 | `JWT_SECRET` | `worker` secret / `.dev.vars` | Yes |
 | `GITHUB_TOKEN` | `worker` secret / `.dev.vars` | For Tape Deck |
 | `CORS_ORIGINS` | `worker` secret / `.dev.vars` | Production (comma-separated origins) |
+| `ADMIN_EMAILS` | `worker` secret / `.dev.vars` | Moderator emails (comma-separated) |
 | `GITHUB_MODEL` | `worker` secret / `.dev.vars` | No (default `openai/gpt-4o`) |
 | `JWT_EXPIRE_HOURS` | `worker` secret / `.dev.vars` | No (default `168`) |
 | `INTERNAL_API_URL` | `frontend/.env` | Local dev only |

@@ -6,6 +6,7 @@ async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
     const err = await res.json().catch(() => ({ detail: res.statusText }))
     throw new Error(err.detail ?? 'Request failed')
   }
+  if (res.status === 204) return undefined as T
   return res.json()
 }
 
@@ -31,6 +32,23 @@ export const clientApi = {
         Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify(data),
+    }),
+
+  getPendingBreakdowns: (token: string) =>
+    fetchJson<Breakdown[]>('/api/breakdowns/pending', {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+
+  approveBreakdown: (id: string, token: string) =>
+    fetchJson<Breakdown>(`/api/breakdowns/${id}/approve`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+
+  rejectBreakdown: (id: string, token: string) =>
+    fetchJson<void>(`/api/breakdowns/${id}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
     }),
 
   streamChat: async function* (

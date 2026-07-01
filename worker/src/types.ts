@@ -14,6 +14,8 @@ export interface Env {
   GITHUB_MODEL?: string
   /** Comma-separated browser origins allowed for cross-origin API calls */
   CORS_ORIGINS?: string
+  /** Comma-separated emails granted admin on register/login */
+  ADMIN_EMAILS?: string
 }
 
 export const CATEGORY_META: Record<
