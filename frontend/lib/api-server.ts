@@ -6,7 +6,7 @@ async function serverFetch<T>(path: string): Promise<T> {
   try {
     const { getCloudflareContext } = await import('@opennextjs/cloudflare')
     const { env } = await getCloudflareContext({ async: true })
-    const api = (env as { API?: Fetcher }).API
+    const api = (env as { API?: { fetch: typeof fetch } }).API
     if (api) {
       res = await api.fetch(new Request(`https://internal${path}`))
     } else {
