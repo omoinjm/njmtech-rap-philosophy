@@ -12,6 +12,8 @@ export interface Env {
   JWT_EXPIRE_HOURS?: string
   GITHUB_TOKEN?: string
   GITHUB_MODEL?: string
+  /** Comma-separated browser origins allowed for cross-origin API calls */
+  CORS_ORIGINS?: string
 }
 
 export const CATEGORY_META: Record<

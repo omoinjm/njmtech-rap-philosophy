@@ -56,6 +56,8 @@ The Next.js dev server proxies `/api/*` to the worker at `:8787`.
 
 Both workers share one D1 database.
 
+**Full step-by-step commands:** see [docs/RUNBOOK.md](docs/RUNBOOK.md)
+
 ### 1. D1 setup
 
 ```bash
@@ -127,6 +129,7 @@ npm run preview
 | `JWT_EXPIRE_HOURS` | No | Default `168` |
 | `GITHUB_TOKEN` | For Tape Deck | PAT with `models:read` |
 | `GITHUB_MODEL` | No | Default `openai/gpt-4o` |
+| `CORS_ORIGINS` | Production | Comma-separated browser origins, e.g. `https://yourdomain.com` |
 
 ### Frontend (`frontend/.env` — local dev only)
 

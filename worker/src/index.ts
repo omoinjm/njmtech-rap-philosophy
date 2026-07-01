@@ -10,6 +10,7 @@ import {
 } from './auth'
 import { ensureSchema } from './schema'
 import { ensureSeed } from './seed'
+import { resolveCorsOrigins } from './cors'
 import { CATEGORY_META, type Env, type PhilosophicalCategory } from './types'
 
 const GITHUB_MODELS_BASE_URL = 'https://models.github.ai/inference'
@@ -25,7 +26,11 @@ const app = new Hono<{ Bindings: Env }>()
 app.use(
   '*',
   cors({
-    origin: ['http://localhost:3000', 'http://127.0.0.1:3000'],
+    origin: (origin, c) => {
+      const allowed = resolveCorsOrigins(c.env.CORS_ORIGINS)
+      if (!origin) return allowed[0]
+      return allowed.includes(origin) ? origin : null
+    },
     allowHeaders: ['Content-Type', 'Authorization'],
     allowMethods: ['GET', 'POST', 'OPTIONS'],
   }),
