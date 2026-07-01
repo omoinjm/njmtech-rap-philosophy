@@ -24,6 +24,35 @@ async function jsonRequest<T>(
 }
 
 describe('API integration', () => {
+  it('returns 429 when global rate limit is exceeded', async () => {
+    const env = testEnv({
+      RATE_LIMIT_GLOBAL: {
+        limit: async () => ({ success: false }),
+      },
+    })
+    const res = await app.request('/api/artists', {}, env)
+    expect(res.status).toBe(429)
+    const body = (await res.json()) as { detail: string }
+    expect(body.detail).toContain('Too many requests')
+    expect(res.headers.get('Retry-After')).toBe('60')
+  })
+
+  it('returns 413 for oversized chat Content-Length', async () => {
+    const res = await app.request(
+      '/api/tapedeck/chat',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Content-Length': '70000',
+        },
+        body: JSON.stringify({ message: 'hi', history: [] }),
+      },
+      testEnv(),
+    )
+    expect(res.status).toBe(413)
+  })
+
   it('returns health status', async () => {
     const { status, body } = await jsonRequest<{ status: string }>('/health')
     expect(status).toBe(200)

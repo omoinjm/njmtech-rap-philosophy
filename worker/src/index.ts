@@ -17,6 +17,8 @@ import { ensureSchema } from './schema'
 import { ensureSeed } from './seed'
 import { resolveCorsOrigins } from './cors'
 import { verifyGoogleIdToken } from './google-auth'
+import { rateLimitMiddleware } from './rate-limit'
+import { requestGuardMiddleware, validateChatRequestBody } from './request-guards'
 import { CATEGORY_META, type Env, type PhilosophicalCategory } from './types'
 
 const GITHUB_MODELS_BASE_URL = 'https://models.github.ai/inference'
@@ -41,6 +43,9 @@ app.use(
     allowMethods: ['GET', 'POST', 'OPTIONS'],
   }),
 )
+
+app.use('*', requestGuardMiddleware())
+app.use('*', rateLimitMiddleware())
 
 app.use('*', async (c, next) => {
   await ensureSchema(c.env.DB)
@@ -492,12 +497,17 @@ app.post('/api/tapedeck/chat', async (c) => {
     history: Array<{ role: string; content: string }>
   }>()
 
+  const validated = validateChatRequestBody(body)
+  if (!validated.ok) {
+    return c.json({ detail: validated.detail }, 400)
+  }
+
   const context = await buildChatContext(c.env.DB)
   const system = SYSTEM_PROMPT.replace('{context}', context)
   const messages = [
     { role: 'system', content: system },
-    ...body.history.map((m) => ({ role: m.role, content: m.content })),
-    { role: 'user', content: body.message },
+    ...validated.body.history.map((m) => ({ role: m.role, content: m.content })),
+    { role: 'user', content: validated.body.message },
   ]
 
   const model = c.env.GITHUB_MODEL ?? 'openai/gpt-4o'

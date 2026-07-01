@@ -2,6 +2,8 @@
 
 Copy/paste these from the repo root unless a step says otherwise. Replace placeholders before running.
 
+**Post-launch (not required for first deploy):** [docs/TODO.md](TODO.md) — Google Sign-In setup.
+
 | Placeholder | Meaning |
 |---|---|
 | `YOUR_DOMAIN` | Production hostname, e.g. `37thchamber.com` |
@@ -111,13 +113,17 @@ npx wrangler secret put CORS_ORIGINS
 npx wrangler secret put ADMIN_EMAILS
 # paste: your@email.com
 # comma-separated — these accounts get admin + moderation queue access
-
-npx wrangler secret put GOOGLE_CLIENT_ID
-# paste: your-google-oauth-client-id.apps.googleusercontent.com
-# also set NEXT_PUBLIC_GOOGLE_CLIENT_ID to the same value for the frontend worker
 ```
 
 Optional:
+
+```bash
+# Google Sign-In — deferred; see docs/TODO.md when ready
+# npx wrangler secret put GOOGLE_CLIENT_ID
+# npx wrangler secret put NEXT_PUBLIC_GOOGLE_CLIENT_ID  # frontend worker, same value
+```
+
+Other optional secrets:
 
 ```bash
 npx wrangler secret put GITHUB_MODEL
@@ -289,10 +295,59 @@ Run `npm run dev:api` separately in another terminal for the API.
 | `GITHUB_TOKEN` | `worker` secret / `.dev.vars` | For Tape Deck |
 | `CORS_ORIGINS` | `worker` secret / `.dev.vars` | Production (comma-separated origins) |
 | `ADMIN_EMAILS` | `worker` secret / `.dev.vars` | Moderator emails (comma-separated) |
-| `GOOGLE_CLIENT_ID` | `worker` secret / `.dev.vars` | Google Sign-In (optional) |
-| `NEXT_PUBLIC_GOOGLE_CLIENT_ID` | `frontend/.env` / frontend worker vars | Same client ID as `GOOGLE_CLIENT_ID` |
+| `GOOGLE_CLIENT_ID` | `worker` secret / `.dev.vars` | **TODO** — see [docs/TODO.md](TODO.md) |
+| `NEXT_PUBLIC_GOOGLE_CLIENT_ID` | `frontend/.env` / frontend worker vars | **TODO** — same client ID as `GOOGLE_CLIENT_ID` |
 | `GITHUB_MODEL` | `worker` secret / `.dev.vars` | No (default `openai/gpt-4o`) |
 | `JWT_EXPIRE_HOURS` | `worker` secret / `.dev.vars` | No (default `168`) |
 | `INTERNAL_API_URL` | `frontend/.env` | Local dev only |
 
 Production SSR uses the Cloudflare `API` service binding — the frontend worker does not need database secrets.
+
+---
+
+## 11. Rate limiting & DDoS protection
+
+The API worker (`chamber-api`) enforces **tiered rate limits** via Cloudflare Workers [Rate Limiting bindings](https://developers.cloudflare.com/workers/runtime-apis/bindings/rate-limit/) (configured in `worker/wrangler.jsonc`). Limits are **per IP per Cloudflare PoP** (edge location).
+
+| Tier | Routes | Limit |
+|---|---|---|
+| Global | Most GET `/api/*` | 200 requests / 60 s |
+| Auth | `POST /api/auth/*` | 10 requests / 10 s |
+| Chat | `POST /api/tapedeck/chat` | 20 requests / 60 s |
+| Write | `POST`/`DELETE` breakdowns | 30 requests / 60 s |
+
+Exceeded limits return **HTTP 429** with `Retry-After` and `{ "detail": "Too many requests..." }`.
+
+**Request guards** (same worker):
+
+- Max body size: 256 KB (64 KB for Tape Deck chat)
+- Chat: max 4,000 chars per message, 20 history turns
+- Security headers: `X-Content-Type-Options`, `Referrer-Policy`
+
+Local dev and Vitest **skip** rate limits when bindings are absent (fail-open).
+
+### Cloudflare dashboard (edge DDoS — recommended)
+
+Configure once in **Cloudflare Dashboard → your domain**:
+
+1. **Security → Settings**
+   - Enable **Bot Fight Mode** (free plan) or **Super Bot Fight Mode** (paid).
+2. **Security → WAF → Custom rules** (optional extras):
+   - Challenge requests to `/api/tapedeck/chat` when `cf.bot_management.score` is low (Business+ plans with Bot Management).
+   - Block countries you do not serve, if applicable.
+3. **Security → DDoS**
+   - Leave **HTTP DDoS** and **Network-layer DDoS** on (default; automatic).
+4. **Under Attack mode**
+   - Toggle only during an active attack (adds JS challenge for all visitors).
+
+Worker rate limits complement edge protection — they cap abuse that reaches your Worker and protect upstream costs (GitHub Models on Tape Deck).
+
+### Tuning limits
+
+Edit `worker/wrangler.jsonc` → `ratelimits` array, then redeploy:
+
+```bash
+npm run deploy:api
+```
+
+Use unique `namespace_id` values per tier. See [docs/RAG-PLAN.md](RAG-PLAN.md) for planned Tape Deck latency improvements.

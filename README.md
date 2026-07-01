@@ -13,7 +13,7 @@ A Rap Philosophy exploration platform that maps hip-hop artists to philosophical
 | Database | Cloudflare D1 (SQLite) |
 | AI Chat | GitHub Models (`openai/gpt-4o` via GitHub token) |
 | Music | Spotify Web API (embedded player) |
-| Auth | JWT sessions + email/password + Google Sign-In (users in D1) |
+| Auth | JWT sessions + email/password (Google Sign-In: **TODO** — see [docs/TODO.md](docs/TODO.md)) |
 
 ## Project Structure
 
@@ -55,7 +55,8 @@ The Next.js dev server proxies `/api/*` to the worker at `:8787`.
 
 Both workers share one D1 database.
 
-**Full step-by-step commands:** see [docs/RUNBOOK.md](docs/RUNBOOK.md)
+**Full step-by-step commands:** see [docs/RUNBOOK.md](docs/RUNBOOK.md) (includes rate limiting & DDoS).  
+**Tape Deck RAG / latency roadmap:** see [docs/RAG-PLAN.md](docs/RAG-PLAN.md).
 
 ### 1. D1 setup
 
@@ -130,14 +131,14 @@ npm run preview
 | `GITHUB_MODEL` | No | Default `openai/gpt-4o` |
 | `CORS_ORIGINS` | Production | Comma-separated browser origins, e.g. `https://yourdomain.com` |
 | `ADMIN_EMAILS` | For moderation | Comma-separated emails granted admin on register/login |
-| `GOOGLE_CLIENT_ID` | For Google Sign-In | OAuth client ID (same value as frontend `NEXT_PUBLIC_GOOGLE_CLIENT_ID`) |
+| `GOOGLE_CLIENT_ID` | **TODO** | Google Sign-In — see [docs/TODO.md](docs/TODO.md) |
 
 ### Frontend (`frontend/.env` — local dev only)
 
 | Variable | Description |
 |---|---|
 | `INTERNAL_API_URL` | API worker URL (default `http://127.0.0.1:8787`) |
-| `NEXT_PUBLIC_GOOGLE_CLIENT_ID` | Google OAuth client ID (optional; enables Sign in with Google) |
+| `NEXT_PUBLIC_GOOGLE_CLIENT_ID` | **TODO** — enables Sign in with Google ([docs/TODO.md](docs/TODO.md)) |
 
 Production SSR uses the Cloudflare `API` service binding — no frontend secrets needed for the database.
 
