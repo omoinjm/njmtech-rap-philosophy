@@ -92,7 +92,7 @@ Run from repo root after merging/pulling the latest branch.
 npm run db:migrate:remote
 ```
 
-This applies all migrations including `0003_fix_seed_media.sql` (Spotify IDs + artist images).
+This applies all migrations including `0003_fix_seed_media.sql` (Spotify IDs + artist images) and `0005_add_seed_breakdowns.sql` (curated lyric analyses for all artists).
 
 ### 4b. Set API worker secrets
 
