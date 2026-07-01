@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import type { ArtistDetail, Breakdown, Track } from '@/lib/types'
-import { CATEGORY_DESCRIPTIONS, CATEGORY_LABELS } from '@/lib/constants'
+import { CATEGORY_COLORS, CATEGORY_DESCRIPTIONS, CATEGORY_LABELS } from '@/lib/constants'
 import { EraBadge } from './EraBadge'
 import { CategoryBadge } from './CategoryBadge'
 import { SpotifyArtistFollow, SpotifyEmbed } from './SpotifyEmbed'
@@ -85,6 +85,31 @@ export function ArtistProfile({ artist, tracks, breakdowns }: Props) {
             )}
           </div>
         </FadeInView>
+
+        {artist.traditions.length > 0 && (
+          <FadeInView className="mb-12" delay={0.03}>
+            <h2 className="font-heading mb-6 text-2xl font-bold text-white">Philosophical Traditions</h2>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {artist.traditions.map((tradition) => (
+                <Card
+                  key={tradition.id}
+                  className="rounded-none border-chamber-border bg-chamber-surface py-0 ring-0"
+                  style={{ borderTopWidth: 3, borderTopColor: CATEGORY_COLORS[tradition.category] }}
+                >
+                  <CardHeader className="px-5 pt-5">
+                    <CategoryBadge category={tradition.category} />
+                    <CardTitle className="font-heading mt-2 text-lg text-white">{tradition.name}</CardTitle>
+                  </CardHeader>
+                  {tradition.description && (
+                    <CardContent className="px-5 pb-5">
+                      <p className="text-sm leading-relaxed text-muted-foreground">{tradition.description}</p>
+                    </CardContent>
+                  )}
+                </Card>
+              ))}
+            </div>
+          </FadeInView>
+        )}
 
         {artist.influences.length > 0 && (
           <FadeInView className="mb-12" delay={0.05}>

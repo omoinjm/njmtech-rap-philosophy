@@ -20,8 +20,11 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { FadeInView } from '@/components/motion/FadeInView'
+import { GoogleSignInButton } from '@/components/GoogleSignInButton'
+import { GOOGLE_CLIENT_ID, googleAuthEnabled } from '@/lib/google-auth'
 import { fadeUp, spinnerVariants, staggerContainer } from '@/lib/motion'
 import { cn } from '@/lib/utils'
+import { GoogleOAuthProvider } from '@react-oauth/google'
 
 interface Props {
   initialBreakdowns: Breakdown[]
@@ -31,7 +34,7 @@ interface Props {
 }
 
 export function CipherClient({ initialBreakdowns, traditions, artists, tracks }: Props) {
-  const { user, accessToken, signInWithEmail, signUpWithEmail, signOut, loading: authLoading } =
+  const { user, accessToken, signInWithEmail, signUpWithEmail, signInWithGoogle, signOut, loading: authLoading } =
     useAuth()
 
   const [breakdowns, setBreakdowns] = useState(initialBreakdowns)
@@ -51,6 +54,7 @@ export function CipherClient({ initialBreakdowns, traditions, artists, tracks }:
   const [formAnalysis, setFormAnalysis] = useState('')
   const [formTraditionId, setFormTraditionId] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [submitSuccess, setSubmitSuccess] = useState<string | null>(null)
 
   useEffect(() => {
     if (!traditionFilter) {
@@ -77,6 +81,16 @@ export function CipherClient({ initialBreakdowns, traditions, artists, tracks }:
     }
   }
 
+  const handleGoogleSignIn = async (credential: string) => {
+    setAuthError(null)
+    try {
+      await signInWithGoogle(credential)
+      setShowAuth(false)
+    } catch (err) {
+      setAuthError(err instanceof Error ? err.message : 'Google Sign-In failed')
+    }
+  }
+
   const handleSubmitBreakdown = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!accessToken) return
@@ -97,7 +111,7 @@ export function CipherClient({ initialBreakdowns, traditions, artists, tracks }:
       setFormAnalysis('')
       setFormTraditionId('')
       setShowForm(false)
-      setBreakdowns(await clientApi.getBreakdowns(traditionFilter || undefined))
+      setSubmitSuccess('Submission received — it will appear in The Cipher after moderator approval.')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Submission failed')
     } finally {
@@ -105,7 +119,7 @@ export function CipherClient({ initialBreakdowns, traditions, artists, tracks }:
     }
   }
 
-  return (
+  const content = (
     <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
       <FadeInView className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
@@ -198,6 +212,7 @@ export function CipherClient({ initialBreakdowns, traditions, artists, tracks }:
       )}
 
       {error && <p className="mt-4 text-sm text-destructive">{error}</p>}
+      {submitSuccess && <p className="mt-4 text-sm text-primary">{submitSuccess}</p>}
 
       <Dialog open={showAuth} onOpenChange={setShowAuth}>
         <DialogContent className="rounded-none border-chamber-border bg-chamber-surface sm:max-w-md">
@@ -231,6 +246,15 @@ export function CipherClient({ initialBreakdowns, traditions, artists, tracks }:
               />
             </div>
             {authError && <p className="text-sm text-destructive">{authError}</p>}
+            {googleAuthEnabled && (
+              <>
+                <GoogleSignInButton
+                  onSuccess={(credential) => void handleGoogleSignIn(credential)}
+                  onError={setAuthError}
+                />
+                <p className="text-center text-xs uppercase tracking-wider text-muted-foreground">or</p>
+              </>
+            )}
             <DialogFooter className="flex-col gap-2 sm:flex-col">
               <Button type="submit" className="w-full rounded-none uppercase tracking-wider">
                 {authMode === 'signin' ? 'Sign In' : 'Sign Up'}
@@ -337,6 +361,12 @@ export function CipherClient({ initialBreakdowns, traditions, artists, tracks }:
       </Dialog>
     </div>
   )
+
+  if (googleAuthEnabled) {
+    return <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>{content}</GoogleOAuthProvider>
+  }
+
+  return content
 }
 
 function LoadingSpinner({ label }: { label: string }) {

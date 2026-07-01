@@ -1,15 +1,24 @@
 import { Hono } from 'hono'
+import type { Context } from 'hono'
 import { cors } from 'hono/cors'
 
 import {
   bearerToken,
   createAccessToken,
+  getAuthUser,
   hashPassword,
+  isConfiguredAdmin,
+  promoteAdminIfConfigured,
+  userPayload,
   verifyPassword,
   verifyToken,
 } from './auth'
 import { ensureSchema } from './schema'
 import { ensureSeed } from './seed'
+import { resolveCorsOrigins } from './cors'
+import { verifyGoogleIdToken } from './google-auth'
+import { rateLimitMiddleware } from './rate-limit'
+import { requestGuardMiddleware, validateChatRequestBody } from './request-guards'
 import { CATEGORY_META, type Env, type PhilosophicalCategory } from './types'
 
 const GITHUB_MODELS_BASE_URL = 'https://models.github.ai/inference'
@@ -25,11 +34,18 @@ const app = new Hono<{ Bindings: Env }>()
 app.use(
   '*',
   cors({
-    origin: ['http://localhost:3000', 'http://127.0.0.1:3000'],
+    origin: (origin, c) => {
+      const allowed = resolveCorsOrigins(c.env.CORS_ORIGINS)
+      if (!origin) return allowed[0]
+      return allowed.includes(origin) ? origin : null
+    },
     allowHeaders: ['Content-Type', 'Authorization'],
     allowMethods: ['GET', 'POST', 'OPTIONS'],
   }),
 )
+
+app.use('*', requestGuardMiddleware())
+app.use('*', rateLimitMiddleware())
 
 app.use('*', async (c, next) => {
   await ensureSchema(c.env.DB)
@@ -163,16 +179,47 @@ app.get('/api/traditions', async (c) => {
   return c.json(results)
 })
 
-async function fetchBreakdowns(db: D1Database, where = '', params: string[] = []) {
+async function fetchBreakdowns(
+  db: D1Database,
+  options: {
+    curatedOnly?: boolean
+    pendingOnly?: boolean
+    traditionId?: string
+    trackId?: string
+    breakdownId?: string
+  } = {},
+) {
+  const conditions: string[] = []
+  const params: string[] = []
+
+  if (options.curatedOnly) conditions.push('lb.is_curated = 1')
+  if (options.pendingOnly) conditions.push('lb.is_curated = 0')
+  if (options.traditionId) {
+    conditions.push('lb.tradition_id = ?')
+    params.push(options.traditionId)
+  }
+  if (options.trackId) {
+    conditions.push('lb.track_id = ?')
+    params.push(options.trackId)
+  }
+  if (options.breakdownId) {
+    conditions.push('lb.id = ?')
+    params.push(options.breakdownId)
+  }
+
+  const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : ''
+
   const { results } = await db
     .prepare(
-      `SELECT lb.*, t.title AS track_title, a.name AS artist_name, pt.name AS tradition_name
+      `SELECT lb.*, t.title AS track_title, a.name AS artist_name, pt.name AS tradition_name,
+              u.email AS submitted_by_email
        FROM lyric_breakdowns lb
        JOIN tracks t ON t.id = lb.track_id
        JOIN artists a ON a.id = t.artist_id
        LEFT JOIN philosophical_traditions pt ON pt.id = lb.tradition_id
+       LEFT JOIN users u ON u.id = lb.submitted_by
        ${where}
-       ORDER BY lb.is_curated DESC`,
+       ORDER BY lb.is_curated DESC, lb.rowid DESC`,
     )
     .bind(...params)
     .all()
@@ -187,20 +234,41 @@ async function fetchBreakdowns(db: D1Database, where = '', params: string[] = []
     tradition_id: row.tradition_id,
     tradition_name: row.tradition_name,
     is_curated: Boolean(row.is_curated),
+    submitted_by: row.submitted_by ?? null,
+    submitted_by_email: row.submitted_by_email ?? null,
   }))
+}
+
+async function requireAdmin(c: Context<{ Bindings: Env }>) {
+  const auth = await verifyToken(c.env, bearerToken(c.req.header('Authorization')) ?? '')
+  if (!auth) return { error: c.json({ detail: 'Authentication required' }, 401) as Response }
+
+  const user = await getAuthUser(c.env.DB, auth.userId)
+  if (!user) return { error: c.json({ detail: 'User not found' }, 401) as Response }
+  if (!user.is_admin) return { error: c.json({ detail: 'Admin access required' }, 403) as Response }
+
+  return { user }
 }
 
 app.get('/api/breakdowns', async (c) => {
   const traditionId = c.req.query('tradition_id')
-  if (traditionId) {
-    return c.json(await fetchBreakdowns(c.env.DB, 'WHERE lb.tradition_id = ?', [traditionId]))
-  }
-  return c.json(await fetchBreakdowns(c.env.DB))
+  return c.json(
+    await fetchBreakdowns(c.env.DB, {
+      curatedOnly: true,
+      traditionId: traditionId ?? undefined,
+    }),
+  )
+})
+
+app.get('/api/breakdowns/pending', async (c) => {
+  const admin = await requireAdmin(c)
+  if ('error' in admin) return admin.error
+  return c.json(await fetchBreakdowns(c.env.DB, { pendingOnly: true }))
 })
 
 app.get('/api/breakdowns/track/:trackId', async (c) => {
   const trackId = c.req.param('trackId')
-  return c.json(await fetchBreakdowns(c.env.DB, 'WHERE lb.track_id = ?', [trackId]))
+  return c.json(await fetchBreakdowns(c.env.DB, { curatedOnly: true, trackId }))
 })
 
 app.post('/api/breakdowns', async (c) => {
@@ -235,8 +303,93 @@ app.post('/api/breakdowns', async (c) => {
     )
     .run()
 
-  const rows = await fetchBreakdowns(c.env.DB, 'WHERE lb.id = ?', [id])
+  const rows = await fetchBreakdowns(c.env.DB, { breakdownId: id })
   return c.json(rows[0], 201)
+})
+
+app.post('/api/breakdowns/:id/approve', async (c) => {
+  const admin = await requireAdmin(c)
+  if ('error' in admin) return admin.error
+
+  const id = c.req.param('id')
+  const existing = await c.env.DB.prepare('SELECT id, is_curated FROM lyric_breakdowns WHERE id = ?')
+    .bind(id)
+    .first<{ id: string; is_curated: number }>()
+  if (!existing) return c.json({ detail: 'Breakdown not found' }, 404)
+  if (existing.is_curated) return c.json({ detail: 'Breakdown is already curated' }, 409)
+
+  await c.env.DB.prepare('UPDATE lyric_breakdowns SET is_curated = 1 WHERE id = ?').bind(id).run()
+
+  const rows = await fetchBreakdowns(c.env.DB, { breakdownId: id })
+  return c.json(rows[0])
+})
+
+app.delete('/api/breakdowns/:id', async (c) => {
+  const admin = await requireAdmin(c)
+  if ('error' in admin) return admin.error
+
+  const id = c.req.param('id')
+  const existing = await c.env.DB.prepare('SELECT id, is_curated FROM lyric_breakdowns WHERE id = ?')
+    .bind(id)
+    .first<{ id: string; is_curated: number }>()
+  if (!existing) return c.json({ detail: 'Breakdown not found' }, 404)
+  if (existing.is_curated) return c.json({ detail: 'Curated breakdowns cannot be deleted' }, 409)
+
+  await c.env.DB.prepare('DELETE FROM lyric_breakdowns WHERE id = ?').bind(id).run()
+  return c.body(null, 204)
+})
+
+app.post('/api/auth/google', async (c) => {
+  if (!c.env.GOOGLE_CLIENT_ID) {
+    return c.json({ detail: 'Google Sign-In not configured (set GOOGLE_CLIENT_ID)' }, 503)
+  }
+
+  const body = await c.req.json<{ credential: string }>()
+  if (!body.credential) {
+    return c.json({ detail: 'Google credential required' }, 400)
+  }
+
+  let profile
+  try {
+    profile = await verifyGoogleIdToken(body.credential, c.env.GOOGLE_CLIENT_ID)
+  } catch {
+    return c.json({ detail: 'Invalid Google credential' }, 401)
+  }
+
+  let user = await c.env.DB.prepare(
+    'SELECT id, email, is_admin FROM users WHERE google_id = ?',
+  )
+    .bind(profile.sub)
+    .first<{ id: string; email: string; is_admin: number }>()
+
+  if (!user) {
+    user = await c.env.DB.prepare('SELECT id, email, is_admin FROM users WHERE email = ?')
+      .bind(profile.email)
+      .first<{ id: string; email: string; is_admin: number }>()
+
+    if (user) {
+      await c.env.DB.prepare('UPDATE users SET google_id = ? WHERE id = ?')
+        .bind(profile.sub, user.id)
+        .run()
+    } else {
+      const userId = crypto.randomUUID()
+      const isAdmin = isConfiguredAdmin(profile.email, c.env) ? 1 : 0
+      await c.env.DB.prepare(
+        `INSERT INTO users (id, email, password_hash, google_id, is_admin)
+         VALUES (?, ?, ?, ?, ?)`,
+      )
+        .bind(userId, profile.email, hashPassword(crypto.randomUUID()), profile.sub, isAdmin)
+        .run()
+      user = { id: userId, email: profile.email, is_admin: isAdmin }
+    }
+  }
+
+  await promoteAdminIfConfigured(c.env.DB, c.env, user.id, profile.email)
+  const refreshed = await getAuthUser(c.env.DB, user.id)
+  if (!refreshed) return c.json({ detail: 'User not found' }, 401)
+
+  const token = await createAccessToken(c.env, refreshed.id, refreshed.email)
+  return c.json({ access_token: token, user: userPayload(refreshed) })
 })
 
 app.post('/api/auth/register', async (c) => {
@@ -249,14 +402,18 @@ app.post('/api/auth/register', async (c) => {
 
   const userId = crypto.randomUUID()
   const passwordHash = hashPassword(body.password)
+  const isAdmin = isConfiguredAdmin(email, c.env) ? 1 : 0
   await c.env.DB.prepare(
-    'INSERT INTO users (id, email, password_hash) VALUES (?, ?, ?)',
+    'INSERT INTO users (id, email, password_hash, is_admin) VALUES (?, ?, ?, ?)',
   )
-    .bind(userId, email, passwordHash)
+    .bind(userId, email, passwordHash, isAdmin)
     .run()
 
   const token = await createAccessToken(c.env, userId, email)
-  return c.json({ access_token: token, user: { id: userId, email } }, 201)
+  return c.json(
+    { access_token: token, user: userPayload({ id: userId, email, is_admin: isAdmin }) },
+    201,
+  )
 })
 
 app.post('/api/auth/login', async (c) => {
@@ -271,19 +428,21 @@ app.post('/api/auth/login', async (c) => {
     return c.json({ detail: 'Invalid email or password' }, 401)
   }
 
-  const token = await createAccessToken(c.env, user.id, user.email)
-  return c.json({ access_token: token, user: { id: user.id, email: user.email } })
+  await promoteAdminIfConfigured(c.env.DB, c.env, user.id, email)
+  const refreshed = await getAuthUser(c.env.DB, user.id)
+  if (!refreshed) return c.json({ detail: 'User not found' }, 401)
+
+  const token = await createAccessToken(c.env, refreshed.id, refreshed.email)
+  return c.json({ access_token: token, user: userPayload(refreshed) })
 })
 
 app.get('/api/auth/me', async (c) => {
   const auth = await verifyToken(c.env, bearerToken(c.req.header('Authorization')) ?? '')
   if (!auth) return c.json({ detail: 'Authentication required' }, 401)
 
-  const user = await c.env.DB.prepare('SELECT id, email FROM users WHERE id = ?')
-    .bind(auth.userId)
-    .first<{ id: string; email: string }>()
+  const user = await getAuthUser(c.env.DB, auth.userId)
   if (!user) return c.json({ detail: 'User not found' }, 401)
-  return c.json(user)
+  return c.json(userPayload(user))
 })
 
 async function buildChatContext(db: D1Database): Promise<string> {
@@ -338,12 +497,17 @@ app.post('/api/tapedeck/chat', async (c) => {
     history: Array<{ role: string; content: string }>
   }>()
 
+  const validated = validateChatRequestBody(body)
+  if (!validated.ok) {
+    return c.json({ detail: validated.detail }, 400)
+  }
+
   const context = await buildChatContext(c.env.DB)
   const system = SYSTEM_PROMPT.replace('{context}', context)
   const messages = [
     { role: 'system', content: system },
-    ...body.history.map((m) => ({ role: m.role, content: m.content })),
-    { role: 'user', content: body.message },
+    ...validated.body.history.map((m) => ({ role: m.role, content: m.content })),
+    { role: 'user', content: validated.body.message },
   ]
 
   const model = c.env.GITHUB_MODEL ?? 'openai/gpt-4o'

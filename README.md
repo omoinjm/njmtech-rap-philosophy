@@ -13,7 +13,7 @@ A Rap Philosophy exploration platform that maps hip-hop artists to philosophical
 | Database | Cloudflare D1 (SQLite) |
 | AI Chat | GitHub Models (`openai/gpt-4o` via GitHub token) |
 | Music | Spotify Web API (embedded player) |
-| Auth | JWT sessions (users in D1) |
+| Auth | JWT sessions + email/password (Google Sign-In: **TODO** — see [docs/TODO.md](docs/TODO.md)) |
 
 ## Project Structure
 
@@ -22,7 +22,6 @@ A Rap Philosophy exploration platform that maps hip-hop artists to philosophical
 ├── frontend/          # Next.js app → Cloudflare Worker (chamber)
 ├── worker/            # Hono API → Cloudflare Worker (chamber-api)
 ├── migrations/d1/     # D1 SQL migrations
-├── backend/           # Legacy FastAPI (local dev only, optional)
 └── package.json       # Root deploy scripts
 ```
 
@@ -55,6 +54,9 @@ The Next.js dev server proxies `/api/*` to the worker at `:8787`.
 ## Deploy to Cloudflare
 
 Both workers share one D1 database.
+
+**Full step-by-step commands:** see [docs/RUNBOOK.md](docs/RUNBOOK.md) (includes rate limiting & DDoS).  
+**Tape Deck RAG / latency roadmap:** see [docs/RAG-PLAN.md](docs/RAG-PLAN.md).
 
 ### 1. D1 setup
 
@@ -127,12 +129,16 @@ npm run preview
 | `JWT_EXPIRE_HOURS` | No | Default `168` |
 | `GITHUB_TOKEN` | For Tape Deck | PAT with `models:read` |
 | `GITHUB_MODEL` | No | Default `openai/gpt-4o` |
+| `CORS_ORIGINS` | Production | Comma-separated browser origins, e.g. `https://yourdomain.com` |
+| `ADMIN_EMAILS` | For moderation | Comma-separated emails granted admin on register/login |
+| `GOOGLE_CLIENT_ID` | **TODO** | Google Sign-In — see [docs/TODO.md](docs/TODO.md) |
 
 ### Frontend (`frontend/.env` — local dev only)
 
 | Variable | Description |
 |---|---|
 | `INTERNAL_API_URL` | API worker URL (default `http://127.0.0.1:8787`) |
+| `NEXT_PUBLIC_GOOGLE_CLIENT_ID` | **TODO** — enables Sign in with Google ([docs/TODO.md](docs/TODO.md)) |
 
 Production SSR uses the Cloudflare `API` service binding — no frontend secrets needed for the database.
 
@@ -146,6 +152,7 @@ Production SSR uses the Cloudflare `API` service binding — no frontend secrets
 | `/artist/:id` | Artist profile, Spotify, breakdowns |
 | `/tapedeck` | AI chat with streaming SSE |
 | `/cipher` | Browse/submit lyric breakdowns |
+| `/admin` | Moderation queue (admin only) |
 
 ## API Routes
 
@@ -156,10 +163,14 @@ Production SSR uses the Cloudflare `API` service binding — no frontend secrets
 | GET | `/api/lineage` | Nodes + edges for React Flow |
 | GET | `/api/compass` | Artists grouped by category |
 | GET | `/api/tracks/:artist_id` | Tracks for artist |
-| GET | `/api/breakdowns` | All breakdowns (`?tradition_id=`) |
-| GET | `/api/breakdowns/track/:track_id` | Breakdowns for track |
+| GET | `/api/breakdowns` | Curated breakdowns only (`?tradition_id=`) |
+| GET | `/api/breakdowns/pending` | Pending submissions (admin) |
+| GET | `/api/breakdowns/track/:track_id` | Curated breakdowns for track |
+| POST | `/api/breakdowns/:id/approve` | Approve submission (admin) |
+| DELETE | `/api/breakdowns/:id` | Reject pending submission (admin) |
 | POST | `/api/auth/register` | Create account |
 | POST | `/api/auth/login` | Login, returns JWT |
+| POST | `/api/auth/google` | Google Sign-In (ID token), returns JWT |
 | GET | `/api/auth/me` | Current user (Bearer token) |
 | POST | `/api/breakdowns` | Submit breakdown (auth required) |
 | POST | `/api/tapedeck/chat` | Stream GitHub Models response (SSE) |

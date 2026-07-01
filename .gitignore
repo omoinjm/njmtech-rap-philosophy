@@ -11,6 +11,10 @@ node_modules/
 frontend/.next/
 .open-next/
 dist/
+*.tsbuildinfo
+.wrangler/
+worker/.wrangler/
+worker/.dev.vars
 
 # IDE
 .vscode/

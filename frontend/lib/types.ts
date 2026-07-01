@@ -85,6 +85,8 @@ export interface Breakdown {
   tradition_id: string | null
   tradition_name: string | null
   is_curated: boolean
+  submitted_by?: string | null
+  submitted_by_email?: string | null
 }
 
 export interface ChatMessage {
