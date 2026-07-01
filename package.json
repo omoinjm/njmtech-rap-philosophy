@@ -7,6 +7,8 @@
     "deploy:api": "npm run deploy --prefix worker",
     "deploy:web": "npm run deploy --prefix frontend",
     "deploy": "npm run deploy:api && npm run deploy:web",
+    "test": "npm run test --prefix worker",
+    "typecheck": "npm run typecheck --prefix worker && npm run typecheck --prefix frontend",
     "db:migrate:local": "npm exec --prefix worker wrangler d1 migrations apply chamber --local",
     "db:migrate:remote": "npm exec --prefix worker wrangler d1 migrations apply chamber --remote"
   },

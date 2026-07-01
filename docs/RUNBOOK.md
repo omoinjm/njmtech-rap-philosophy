@@ -219,12 +219,15 @@ Open in browser:
 ```bash
 git pull origin cursor/development-7b6e
 npm run db:migrate:remote
+npm test
+npm run typecheck
 npm run deploy
 ```
 
 If only the API changed:
 
 ```bash
+npm test --prefix worker
 npm run deploy:api
 ```
 
@@ -245,6 +248,22 @@ npm run preview
 ```
 
 Requires the API worker running at http://127.0.0.1:8787.
+
+---
+
+## 10. Run tests locally (same as CI)
+
+From repo root:
+
+```bash
+npm ci --prefix worker
+npm ci --prefix frontend
+npm test
+npm run typecheck
+npm run build --prefix frontend
+```
+
+GitHub Actions runs this automatically on pushes and pull requests to `main` (see `.github/workflows/ci.yml`).
 
 ---
 
