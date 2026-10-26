@@ -1,10 +1,22 @@
 # Local dev only — production uses Cloudflare Workers (see README).
-# Run: docker compose up frontend
-# API: npm run dev:api in a separate terminal
+#
+# Prerequisites (once):
+#   cd frontend && npm install
+#   cd worker && cp .dev.vars.example .dev.vars   # set JWT_SECRET; optional GITHUB_TOKEN
+#   npm run db:migrate:local                      # from repo root
+#
+# Run in two terminals:
+#   npm run dev:api                               # API on :8787 (must bind 0.0.0.0 for Docker)
+#   docker compose up frontend                    # app on http://localhost:3000
 
 services:
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      network: host
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
     ports:
       - "3000:3000"
     environment:
@@ -13,10 +25,9 @@ services:
       - "host.docker.internal:host-gateway"
     volumes:
       - ./frontend:/app
-      - frontend_node_modules:/app/node_modules
+      - ./frontend/node_modules:/app/node_modules
       - frontend_next:/app/.next
-    command: npm run dev -- --turbopack -H 0.0.0.0 -p 3000
+    command: npm run dev -- -H 0.0.0.0 -p 3000
 
 volumes:
-  frontend_node_modules:
   frontend_next:

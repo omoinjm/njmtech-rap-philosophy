@@ -3,6 +3,8 @@ CREATE TABLE IF NOT EXISTS users (
   id TEXT PRIMARY KEY,
   email TEXT NOT NULL UNIQUE,
   password_hash TEXT NOT NULL,
+  is_admin INTEGER NOT NULL DEFAULT 0,
+  google_id TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
@@ -77,8 +79,21 @@ function splitSql(sql: string): string[] {
     .filter(Boolean)
 }
 
+async function ensureUserColumns(db: D1Database): Promise<void> {
+  const { results } = await db.prepare('PRAGMA table_info(users)').all<{ name: string }>()
+  const columns = new Set((results ?? []).map((row) => row.name))
+  if (!columns.has('is_admin')) {
+    await db.prepare('ALTER TABLE users ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0').run()
+  }
+  if (!columns.has('google_id')) {
+    await db.prepare('ALTER TABLE users ADD COLUMN google_id TEXT').run()
+    await db.prepare('CREATE UNIQUE INDEX IF NOT EXISTS idx_users_google_id ON users(google_id)').run()
+  }
+}
+
 export async function ensureSchema(db: D1Database): Promise<void> {
   for (const statement of [...splitSql(USERS_SQL), ...splitSql(APP_SQL)]) {
     await db.prepare(statement).run()
   }
+  await ensureUserColumns(db)
 }
